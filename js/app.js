@@ -1,3 +1,5 @@
+"use strict";
+
 // this function takes the question object returned by the StackOverflow request
 // and returns new result to be appended to DOM
 var showQuestion = function(question) {
@@ -29,6 +31,33 @@ var showQuestion = function(question) {
 	);
 
 	return result;
+};
+
+// this function takes the question object returned by the StackOverflow request
+// and returns new result to be appended to DOM
+var showAnswerers = function(answerer) {
+    
+    // clone our result template code
+    var result = $('.templates .answerer').clone();
+    
+    var answererElem = result.find('.answerer-name');
+    var user = answerer.user;
+    answererElem.html('<p>Name: <a target="_blank" '+
+        'href=' + user.link + ' >' +
+        user.display_name +
+        '</a></p>' +
+        '<p>Reputation: ' + user.reputation + '</p>'
+    );
+
+    // set the count for question property in result
+    var count = result.find('.answerer-count');
+    count.text(answerer.post_count);
+
+    // set the count for question property in result
+    var score = result.find('.answerer-score');
+    score.text(answerer.score);
+
+    return result;
 };
 
 
@@ -81,8 +110,48 @@ var getUnanswered = function(tags) {
 	});
 };
 
+var getTopAnswerers = function(tags) {
+    // the parameters we need to pass in our request to StackOverflow's API
+    var request = { 
+        tagged: tags,
+        site: 'stackoverflow',
+        order: 'desc',
+        sort: 'creation'
+    };
+    
+    $.ajax({
+        url: "http://api.stackexchange.com/2.2/tags/"+tags+"/top-answerers/all_time",
+        data: request,
+        dataType: "jsonp",//use jsonp to avoid cross origin issues
+        type: "GET",
+    })
+    .done(function(result){ //this waits for the ajax to return with a succesful promise object
+        var searchResults = showSearchResults(request.tagged, result.items.length);
+
+        $('.search-results').html(searchResults);
+        //$.each is a higher order function. It takes an array and a function as an argument.
+        //The function is executed once for each item in the array.
+        $.each(result.items, function(i, item) {
+            var answerers = showAnswerers(item);
+            console.log(answerers);
+            $('.results').append(answerers);
+        });
+    })
+    .fail(function(jqXHR, error){ //this waits for the ajax to return with an error promise object
+        var errorElem = showError(error);
+        $('.search-results').append(errorElem);
+    });
+}
 
 $(document).ready( function() {
+    $('.inspiration-getter').submit( function(e){
+        e.preventDefault();
+        // zero out results if previous search has run
+        $('.results').html('');
+        // get the value of the tags the user submitted
+        var tags = $(this).find("input[name='answerers']").val();
+        getTopAnswerers(tags);
+    });
 	$('.unanswered-getter').submit( function(e){
 		e.preventDefault();
 		// zero out results if previous search has run
